@@ -1,0 +1,146 @@
+version: "3.9"
+
+services:
+  # ---- API Server ----
+  api:
+    build:
+      context: .
+      target: api
+    container_name: rewoo-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - REWOO_DATABASE_URL=postgresql+asyncpg://rewoo:${DB_PASSWORD:-rewoo}@postgres:5432/rewoo
+      - REWOO_REDIS_URL=redis://redis:6379/0
+      - REWOO_CELERY_BROKER_URL=redis://redis:6379/1
+      - REWOO_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - REWOO_JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - REWOO_SERVICE_TOKEN=${SERVICE_TOKEN:-change-me-in-production}
+      - REWOO_AUTH_ENABLED=${AUTH_ENABLED:-true}
+      - REWOO_LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - REWOO_JSON_LOGS=${JSON_LOGS:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    networks:
+      - rewoo
+
+  # ---- Celery Worker ----
+  worker:
+    build:
+      context: .
+      target: worker
+    container_name: rewoo-worker
+    restart: unless-stopped
+    environment:
+      - REWOO_DATABASE_URL=postgresql+asyncpg://rewoo:${DB_PASSWORD:-rewoo}@postgres:5432/rewoo
+      - REWOO_REDIS_URL=redis://redis:6379/0
+      - REWOO_CELERY_BROKER_URL=redis://redis:6379/1
+      - REWOO_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - REWOO_LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - REWOO_JSON_LOGS=${JSON_LOGS:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+    networks:
+      - rewoo
+
+  # ---- Celery Beat (Periodic Tasks) ----
+  beat:
+    build:
+      context: .
+      target: beat
+    container_name: rewoo-beat
+    restart: unless-stopped
+    environment:
+      - REWOO_DATABASE_URL=postgresql+asyncpg://rewoo:${DB_PASSWORD:-rewoo}@postgres:5432/rewoo
+      - REWOO_REDIS_URL=redis://redis:6379/0
+      - REWOO_CELERY_BROKER_URL=redis://redis:6379/1
+      - REWOO_CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - REWOO_LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - rewoo
+
+  # ---- PostgreSQL ----
+  postgres:
+    image: postgres:16-alpine
+    container_name: rewoo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rewoo
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rewoo}
+      POSTGRES_DB: rewoo
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rewoo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - rewoo
+
+  # ---- Redis ----
+  redis:
+    image: redis:7-alpine
+    container_name: rewoo-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - rewoo
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  rewoo:
+    driver: bridge

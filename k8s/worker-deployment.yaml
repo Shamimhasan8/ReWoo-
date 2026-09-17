@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rewoo-worker
+  namespace: rewoo
+  labels:
+    app: rewoo-worker
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: rewoo-worker
+  template:
+    metadata:
+      labels:
+        app: rewoo-worker
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          image: rewoo/worker:latest
+          env:
+            - name: REWOO_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rewoo-secrets
+                  key: database-url
+            - name: REWOO_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rewoo-secrets
+                  key: redis-url
+            - name: REWOO_CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rewoo-secrets
+                  key: celery-broker-url
+            - name: REWOO_CELERY_RESULT_BACKEND
+              valueFrom:
+                secretKeyRef:
+                  name: rewoo-secrets
+                  key: celery-result-backend
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rewoo-secrets
+                  key: anthropic-api-key
+            - name: REWOO_LOG_LEVEL
+              value: "INFO"
+            - name: REWOO_JSON_LOGS
+              value: "true"
+            - name: REWOO_CELERY_CONCURRENCY
+              value: "4"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rewoo-worker-hpa
+  namespace: rewoo
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rewoo-worker
+  minReplicas: 4
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60

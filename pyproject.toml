@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rewoo"
+version = "0.1.0"
+description = "A low-risk, plan-first AI agent framework built on the ReWOO architecture"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "ReWoo Contributors" },
+]
+keywords = ["ai", "agent", "rewoo", "planning", "safety", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "anthropic>=0.30.0",
+    "openai>=1.30.0",
+    "click>=8.0",
+    "rich>=13.0",
+    "httpx>=0.27.0",
+    "aiofiles>=23.0",
+    # Production dependencies
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+    "celery[redis]>=5.4.0",
+    "redis>=5.0.0",
+    "pyjwt>=2.8.0",
+    "bcrypt>=4.0.0",
+    "email-validator>=2.0",
+    "prometheus-client>=0.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "httpx>=0.27.0",
+    "locust>=2.20",
+]
+k8s = [
+    "kubernetes>=30.0",
+]
+otel = [
+    "opentelemetry-api>=1.20",
+    "opentelemetry-sdk>=1.20",
+    "opentelemetry-exporter-otlp>=1.20",
+    "opentelemetry-instrumentation-fastapi>=0.41b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.41b0",
+    "opentelemetry-instrumentation-redis>=0.41b0",
+    "opentelemetry-instrumentation-httpx>=0.41b0",
+    "opentelemetry-instrumentation-celery>=0.41b0",
+]
+
+[project.scripts]
+rewoo = "rewoo.cli:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

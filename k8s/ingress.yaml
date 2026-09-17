@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rewoo-api-ingress
+  namespace: rewoo
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/websocket-services: "rewoo-api"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.rewoo.ai
+      secretName: rewoo-api-tls
+  rules:
+    - host: api.rewoo.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rewoo-api
+                port:
+                  number: 8000
